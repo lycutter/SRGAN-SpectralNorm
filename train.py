@@ -59,21 +59,21 @@ def calc_gradient_penalty(netD, real_data, fake_data):
     gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * LAMBDA
     return gradient_penalty
 
-def adjust_learning_rate(optimizer, epoch):
-
-    lr = 0
-
-    if epoch / 10 == 0:
-        lr = 0.0002
-    elif epoch / 10 == 1:
-        lr = 0.00015
-    elif epoch / 30 == 1:
-        lr = 0.00012
-    elif epoch / 50 >= 1:
-        lr = 0.0001
-
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+# def adjust_learning_rate(optimizer, epoch):
+#
+#     lr = 0
+#
+#     if epoch / 10 == 0:
+#         lr = 0.0002
+#     elif epoch / 10 == 1:
+#         lr = 0.00015
+#     elif epoch / 30 == 1:
+#         lr = 0.00012
+#     elif epoch / 50 >= 1:
+#         lr = 0.0001
+#
+#     for param_group in optimizer.param_groups:
+#         param_group['lr'] = lr
 
 def main():
 
