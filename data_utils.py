@@ -1,6 +1,8 @@
 from os import listdir
 from os.path import join
 
+import torch
+
 from PIL import Image
 from torch.utils.data.dataset import Dataset
 from torchvision.transforms import Compose, RandomCrop, ToTensor, ToPILImage, CenterCrop, Resize, Normalize
@@ -17,7 +19,8 @@ def calculate_valid_crop_size(crop_size, upscale_factor):
 def train_hr_transform(crop_size):
     return Compose([
         RandomCrop(crop_size),
-        ToTensor(),
+        # Resize((128,128), interpolation=Image.BICUBIC),
+        ToTensor()
         # Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 
     ])
@@ -27,7 +30,8 @@ def train_lr_transform(crop_size, upscale_factor):
     return Compose([
         ToPILImage(),
         Resize(crop_size // upscale_factor, interpolation=Image.BICUBIC),
-        ToTensor(),
+        # Resize((128 // upscale_factor, 128 // upscale_factor), interpolation=Image.BICUBIC),
+        ToTensor()
         # Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
 
@@ -49,9 +53,14 @@ class TrainDatasetFromFolder(Dataset):
         self.hr_transform = train_hr_transform(crop_size)
         self.lr_transform = train_lr_transform(crop_size, upscale_factor)
 
+
     def __getitem__(self, index):
         hr_image = self.hr_transform(Image.open(self.image_filenames[index]))
         lr_image = self.lr_transform(hr_image)
+
+        # hr_image = torch.from_numpy(((hr_image.numpy() * 255) / (255./2.)) - 1)
+        # lr_image = torch.from_numpy(((lr_image.numpy() * 255) / (255./2.)) - 1)
+
         return lr_image, hr_image
 
     def __len__(self):
@@ -59,6 +68,7 @@ class TrainDatasetFromFolder(Dataset):
 
 
 class ValDatasetFromFolder(Dataset):
+
     def __init__(self, dataset_dir, upscale_factor):
         super(ValDatasetFromFolder, self).__init__()
         self.upscale_factor = upscale_factor

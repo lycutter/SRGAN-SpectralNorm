@@ -25,7 +25,7 @@ opt = parser.parse_args()
 UPSCALE_FACTOR = opt.upscale_factor
 TEST_MODE = True if opt.test_mode == 'GPU' else False
 # IMAGE_NAME = opt.image_name
-IMAGE_NAME = './data/test_input/2.jpg'
+IMAGE_NAME = './data/test_input/4.png'
 MODEL_NAME = opt.model_name
 
 model = Generator(UPSCALE_FACTOR).eval()
@@ -45,5 +45,5 @@ out = model(image)
 elapsed = (time.clock() - start)
 print('cost' + str(elapsed) + 's')
 out_img = ToPILImage()(out[0].data.cpu())
-out_img.save('./data/test_output/2_2.jpg')
+out_img.save('./data/test_output/4.png')
 # out_img.save('./out_srf_' + str(UPSCALE_FACTOR) + '_' + IMAGE_NAME)

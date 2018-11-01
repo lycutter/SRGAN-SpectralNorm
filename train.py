@@ -30,11 +30,20 @@ LAMBDA = 10
 BATCH_SIZE = 32
 
 
-train_set = TrainDatasetFromFolder('data/VOC2012/train', crop_size=CROP_SIZE, upscale_factor=UPSCALE_FACTOR)
+# train_set = TrainDatasetFromFolder('data/VOC2012/train', crop_size=CROP_SIZE, upscale_factor=UPSCALE_FACTOR)
+# val_set = ValDatasetFromFolder('data/VOC2012/val', upscale_factor=UPSCALE_FACTOR)
+
 # train_set = TrainDatasetFromFolder('data/VOC2007/big/train', crop_size=CROP_SIZE, upscale_factor=UPSCALE_FACTOR)
+# val_set = ValDatasetFromFolder('data/VOC2007/big/val', upscale_factor=UPSCALE_FACTOR)
+
+train_set = TrainDatasetFromFolder('D:/pythonWorkplace/SRGAN_Wasserstein-master/data/DIV2K_train_HR', crop_size=CROP_SIZE, upscale_factor=UPSCALE_FACTOR)
 val_set = ValDatasetFromFolder('data/VOC2012/val', upscale_factor=UPSCALE_FACTOR)
+
+
+
 train_loader = DataLoader(dataset=train_set, num_workers=4, batch_size=BATCH_SIZE, shuffle=True)
 val_loader = DataLoader(dataset=val_set, num_workers=4, batch_size=1, shuffle=False)
+
 
 
 def calc_gradient_penalty(netD, real_data, fake_data):
@@ -89,8 +98,8 @@ def main():
         netD.cuda()
         generator_criterion.cuda()
 
-    # load_G = torch.load('./epochs/netG_epoch_4_10.pth')
-    # load_D = torch.load('./epochs/netD_epoch_4_10.pth')
+    # load_G = torch.load('./epochs/netG_epoch_4_25.pth')
+    # load_D = torch.load('./epochs/netD_epoch_4_25.pth')
     # netG.load_state_dict(load_G)
     # netD.load_state_dict(load_D)
 
@@ -101,6 +110,7 @@ def main():
     optimizerG = optim.RMSprop(netG.parameters(), lr=0.0001)
 
     results = {'d_loss': [], 'g_loss': [], 'd_score': [], 'g_score': [], 'psnr': [], 'ssim': []}
+
 
     for epoch in range(1, NUM_EPOCHS + 1):
 
@@ -118,7 +128,7 @@ def main():
         netG.train()
         netD.train()
         for data, target in train_bar:
-            g_update_first = True
+            # g_update_first = True
             batch_size = data.size(0)
             running_results['batch_sizes'] += batch_size
 
@@ -158,7 +168,8 @@ def main():
             # Backward + Optimize
             gradient_penalty = LAMBDA * d_loss_gp
 
-            d_loss = fake_out - real_out + gradient_penalty
+            # d_loss = fake_out - real_out + gradient_penalty
+            d_loss = 1 - real_out + fake_out
             d_loss.backward(retain_graph=True)
             optimizerD.step()
 
@@ -178,8 +189,8 @@ def main():
             fake_out = netD(fake_img).mean()
             g_loss = generator_criterion(fake_out, fake_img, real_img)
             running_results['g_loss'] += g_loss.data[0] * batch_size
-            # d_loss = 1 - real_out + fake_out
-            d_loss = fake_out - real_out + gradient_penalty
+            d_loss = 1 - real_out + fake_out
+            # d_loss = fake_out - real_out + gradient_penalty
             running_results['d_loss'] += d_loss.data[0] * batch_size
             running_results['d_score'] += real_out.data[0] * batch_size
             running_results['g_score'] += fake_out.data[0] * batch_size

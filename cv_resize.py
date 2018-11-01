@@ -28,14 +28,14 @@ import os
 
 
 # seek image
-pic_list = os.listdir('data/VOC2012/train')
+pic_list = os.listdir('D:/pythonWorkplace/SRGAN-master/data/VOC2007/big/train/')
 pic_list = sorted(pic_list)
 
 for i in range(0, len(pic_list)):
 
-    image = cv2.imread('data/VOC2012/train/' + pic_list[i])
+    image = cv2.imread('D:/pythonWorkplace/SRGAN-master/data/VOC2007/big/train/' + pic_list[i])
 
-    if image.shape[0] <=88 or image.shape[1] <= 88:
+    if image.shape[0] <=128 or image.shape[1] <= 128:
         print("filename %s" % pic_list[i])
         cv2.imshow('image', image)
         cv2.waitKey(0)
