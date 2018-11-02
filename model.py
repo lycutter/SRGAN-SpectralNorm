@@ -10,7 +10,7 @@ class Generator(nn.Module):
 
         super(Generator, self).__init__()
         self.block1 = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=9, padding=4),
+            SpectralNorm(nn.Conv2d(3, 64, kernel_size=9, padding=4)),
             nn.PReLU()
         )
         self.block2 = ResidualBlock(64)
@@ -19,11 +19,11 @@ class Generator(nn.Module):
         self.block5 = ResidualBlock(64)
         self.block6 = ResidualBlock(64)
         self.block7 = nn.Sequential(
-            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            SpectralNorm(nn.Conv2d(64, 64, kernel_size=3, padding=1)),
             nn.PReLU()
         )
         block8 = [UpsampleBLock(64, 2) for _ in range(upsample_block_num)]
-        block8.append(nn.Conv2d(64, 3, kernel_size=9, padding=4))
+        block8.append(SpectralNorm(nn.Conv2d(64, 3, kernel_size=9, padding=4)))
         self.block8 = nn.Sequential(*block8)
 
     def forward(self, x):
@@ -85,10 +85,13 @@ class Discriminator(nn.Module):
             # nn.AdaptiveAvgPool2d(1),  # 2
             # SpectralNorm(nn.Conv2d(512, 1, kernel_size=1, stride=1, padding=1)),
 
-            nn.AdaptiveAvgPool2d(1),  # 3
+            # nn.AdaptiveAvgPool2d(1),  # 3
             SpectralNorm(nn.Conv2d(512, 1024, kernel_size=1)),
             nn.LeakyReLU(0.2),
+
+
             SpectralNorm(nn.Conv2d(1024, 1, kernel_size=1))
+
 
 
         )
@@ -99,8 +102,8 @@ class Discriminator(nn.Module):
         batch_size = x.size(0)
 
         ##卷积层
-        # out = self.net(x)
-        # out = out.view(batch_size, -1)
+        out = self.net(x)
+        out = out.view(batch_size, -1)
 
         ## 全连接层
         # out = self.net(x)
@@ -109,7 +112,9 @@ class Discriminator(nn.Module):
         # out = self.linear_2(out)
         # out = out.view(batch_size)
 
-        out = F.sigmoid(self.net(x).view(batch_size))
+        # sigmoid
+        # out = self.net(x)
+        # out = F.sigmoid(out.view(batch_size))
 
         return out
         # out = out.view(batch_size)
@@ -121,10 +126,10 @@ class Discriminator(nn.Module):
 class ResidualBlock(nn.Module):
     def __init__(self, channels):
         super(ResidualBlock, self).__init__()
-        self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
+        self.conv1 = SpectralNorm(nn.Conv2d(channels, channels, kernel_size=3, padding=1))
         self.bn1 = nn.BatchNorm2d(channels)
         self.prelu = nn.PReLU()
-        self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
+        self.conv2 = SpectralNorm(nn.Conv2d(channels, channels, kernel_size=3, padding=1))
         self.bn2 = nn.BatchNorm2d(channels)
 
     def forward(self, x):

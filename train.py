@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser(description='Train Super Resolution Models')
 parser.add_argument('--crop_size', default=88, type=int, help='training images crop size')
 parser.add_argument('--upscale_factor', default=4, type=int, choices=[2, 4, 8],
                     help='super resolution upscale factor')
-parser.add_argument('--num_epochs', default=100, type=int, help='train epoch number')
+parser.add_argument('--num_epochs', default=150, type=int, help='train epoch number')
 
 opt = parser.parse_args()
 
@@ -30,14 +30,13 @@ LAMBDA = 10
 BATCH_SIZE = 32
 
 
-# train_set = TrainDatasetFromFolder('data/VOC2012/train', crop_size=CROP_SIZE, upscale_factor=UPSCALE_FACTOR)
-# val_set = ValDatasetFromFolder('data/VOC2012/val', upscale_factor=UPSCALE_FACTOR)
+train_set = TrainDatasetFromFolder('data/VOC2012/train', crop_size=CROP_SIZE, upscale_factor=UPSCALE_FACTOR)
+val_set = ValDatasetFromFolder('data/VOC2012/val', upscale_factor=UPSCALE_FACTOR)
 
 # train_set = TrainDatasetFromFolder('data/VOC2007/big/train', crop_size=CROP_SIZE, upscale_factor=UPSCALE_FACTOR)
 # val_set = ValDatasetFromFolder('data/VOC2007/big/val', upscale_factor=UPSCALE_FACTOR)
 
-train_set = TrainDatasetFromFolder('D:/pythonWorkplace/SRGAN_Wasserstein-master/data/DIV2K_train_HR', crop_size=CROP_SIZE, upscale_factor=UPSCALE_FACTOR)
-val_set = ValDatasetFromFolder('data/VOC2012/val', upscale_factor=UPSCALE_FACTOR)
+
 
 
 
@@ -98,8 +97,8 @@ def main():
         netD.cuda()
         generator_criterion.cuda()
 
-    # load_G = torch.load('./epochs/netG_epoch_4_25.pth')
-    # load_D = torch.load('./epochs/netD_epoch_4_25.pth')
+    # load_G = torch.load('./epochs/netG_epoch_4_120.pth')
+    # load_D = torch.load('./epochs/netD_epoch_4_120.pth')
     # netG.load_state_dict(load_G)
     # netD.load_state_dict(load_D)
 
@@ -146,8 +145,6 @@ def main():
             netD.zero_grad()
             real_out = netD(real_img).mean()
             fake_out = netD(fake_img).mean()
-            # d_loss = 1 - real_out + fake_out
-            # gradient_penalty = calc_gradient_penalty(netD, real_img.data, fake_img.data)
 
             # Compute gradient penalty
             alpha = torch.rand(real_img.size(0), 1, 1, 1).cuda().expand_as(real_img)
@@ -168,8 +165,9 @@ def main():
             # Backward + Optimize
             gradient_penalty = LAMBDA * d_loss_gp
 
-            # d_loss = fake_out - real_out + gradient_penalty
-            d_loss = 1 - real_out + fake_out
+            d_loss = fake_out - real_out + gradient_penalty
+            # d_loss = 1 - real_out + fake_out
+            # d_loss = fake_out - real_out
             d_loss.backward(retain_graph=True)
             optimizerD.step()
 
@@ -188,12 +186,21 @@ def main():
             fake_img = netG(z)
             fake_out = netD(fake_img).mean()
             g_loss = generator_criterion(fake_out, fake_img, real_img)
-            running_results['g_loss'] += g_loss.data[0] * batch_size
-            d_loss = 1 - real_out + fake_out
-            # d_loss = fake_out - real_out + gradient_penalty
-            running_results['d_loss'] += d_loss.data[0] * batch_size
-            running_results['d_score'] += real_out.data[0] * batch_size
-            running_results['g_score'] += fake_out.data[0] * batch_size
+
+            # running_results['g_loss'] += g_loss.data[0] * batch_size
+            running_results['g_loss'] += g_loss.item() * batch_size
+            # d_loss = 1 - real_out + fake_out
+            d_loss = fake_out - real_out + gradient_penalty
+            # d_loss = fake_out - real_out
+
+            # running_results['d_loss'] += d_loss.data[0] * batch_size
+            # running_results['d_score'] += real_out.data[0] * batch_size
+            # running_results['g_score'] += fake_out.data[0] * batch_size
+
+            #pytorch version change
+            running_results['d_loss'] += d_loss.item() * batch_size
+            running_results['d_score'] += real_out.item() * batch_size
+            running_results['g_score'] += fake_out.item() * batch_size
 
             # for p in netD.parameters():
             #     p.data.clamp_(-0.01, 0.01)
@@ -214,8 +221,12 @@ def main():
         for val_lr, val_hr_restore, val_hr in val_bar:
             batch_size = val_lr.size(0)
             valing_results['batch_sizes'] += batch_size
-            lr = Variable(val_lr, volatile=True)
-            hr = Variable(val_hr, volatile=True)
+            # lr = Variable(val_lr, volatile=True)
+            # hr = Variable(val_hr, volatile=True)
+            # pytorch version update
+            lr = Variable(val_lr)
+            hr = Variable(val_hr)
+
             if torch.cuda.is_available():
                 lr = lr.cuda()
                 hr = hr.cuda()
@@ -223,7 +234,11 @@ def main():
 
             batch_mse = ((sr - hr) ** 2).data.mean()
             valing_results['mse'] += batch_mse * batch_size
-            batch_ssim = pytorch_ssim.ssim(sr, hr).data[0]
+
+            # batch_ssim = pytorch_ssim.ssim(sr, hr).data[0]
+            # pytorch version update
+            batch_ssim = pytorch_ssim.ssim(sr, hr).item()
+
             valing_results['ssims'] += batch_ssim * batch_size
             valing_results['psnr'] = 10 * log10(1 / (valing_results['mse'] / valing_results['batch_sizes']))
             valing_results['ssim'] = valing_results['ssims'] / valing_results['batch_sizes']
@@ -234,14 +249,18 @@ def main():
             val_images.extend(
                 [display_transform()(val_hr_restore.squeeze(0)), display_transform()(hr.data.cpu().squeeze(0)),
                  display_transform()(sr.data.cpu().squeeze(0))])
-        val_images = torch.stack(val_images)
-        val_images = torch.chunk(val_images, val_images.size(0) // 15)
-        val_save_bar = tqdm(val_images, desc='[saving training results]')
-        index = 1
-        for image in val_save_bar:
-            image = utils.make_grid(image, nrow=3, padding=5)
-            utils.save_image(image, out_path + 'epoch_%d_index_%d.png' % (epoch, index), padding=5)
-            index += 1
+
+
+        if epoch % 5 == 0:
+
+            val_images = torch.stack(val_images)
+            val_images = torch.chunk(val_images, val_images.size(0) // 15)
+            index = 1
+            val_save_bar = tqdm(val_images, desc='[saving training results]')
+            for image in val_save_bar:
+                image = utils.make_grid(image, nrow=3, padding=5)
+                utils.save_image(image, out_path + 'epoch_%d_index_%d.png' % (epoch, index), padding=5)
+                index += 1
 
         # save model parameters
         if epoch % 5 == 0:
@@ -257,13 +276,16 @@ def main():
         results['psnr'].append(valing_results['psnr'])
         results['ssim'].append(valing_results['ssim'])
 
-        # if epoch % 10 == 0 and epoch != 0:
-        #     out_path = 'statistics/'
-        #     data_frame = pd.DataFrame(
-        #         data={'Loss_D': results['d_loss'], 'Loss_G': results['g_loss'], 'Score_D': results['d_score'],
-        #               'Score_G': results['g_score'], 'PSNR': results['psnr'], 'SSIM': results['ssim']},
-        #         index=range(1, epoch + 1))
-        #     data_frame.to_csv(out_path + 'srf_' + str(UPSCALE_FACTOR) + '_train_results.csv', index_label='Epoch')
+        try:
+            # if epoch % 5 == 0 and epoch != 0:
+            out_path = 'statistics/'
+            data_frame = pd.DataFrame(
+                data={'Loss_D': results['d_loss'], 'Loss_G': results['g_loss'], 'Score_D': results['d_score'],
+                      'Score_G': results['g_score'], 'PSNR': results['psnr'], 'SSIM': results['ssim']},
+                index=range(1, epoch + 1))
+            data_frame.to_csv(out_path + 'srf_' + str(UPSCALE_FACTOR) + '_train_results.csv', index_label='Epoch')
+        except:
+            print('error occur in epoch %d ' % epoch)
 
 if __name__ == '__main__':
     main()
